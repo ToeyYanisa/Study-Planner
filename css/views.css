@@ -200,26 +200,61 @@
   border-collapse: collapse;
   min-width: 800px;
   margin-bottom: 2rem;
+  border: 1.5px solid #cbd5e1;
 }
 
 .timetable-table th {
-  background: var(--bg-hover);
+  background: #f1f5f9;
   padding: 0.85rem 1rem;
   text-align: center;
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: var(--text-main);
-  border-bottom: 1px solid var(--border-color);
-  border-right: 1px solid var(--border-light);
+  border-bottom: 2px solid #94a3b8;
+  border-right: 1.5px solid #cbd5e1;
   letter-spacing: -0.01em;
 }
 
 .timetable-table td {
   padding: 0.65rem;
-  border-bottom: 1px solid var(--border-light);
-  border-right: 1px solid var(--border-light);
+  border-bottom: 1.5px solid #cbd5e1;
+  border-right: 1.5px solid #cbd5e1;
   vertical-align: top;
-  height: 90px;
+  height: 95px;
+  background: #ffffff;
+}
+
+.timetable-table td:first-child {
+  border-right: 2px solid #94a3b8;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+}
+
+.timetable-table tr:hover td:not(:first-child) {
+  background: #fcfdfe;
+}
+
+[data-theme="dark"] .timetable-table {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .timetable-table th {
+  background: var(--bg-hover);
+  border-bottom-color: rgba(255, 255, 255, 0.18);
+  border-right-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .timetable-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  border-right-color: rgba(255, 255, 255, 0.1);
+  background: var(--bg-card);
+}
+
+[data-theme="dark"] .timetable-table td:first-child {
+  border-right-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim);
 }
 
 .timetable-day-pill {
@@ -1373,3 +1408,131 @@ svg circle { fill: none; }
   font-weight: 500;
   font-size: 0.82rem;
 }
+
+/* ==========================================================================
+   Comprehensive View-Level Responsive Media Queries
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .analytics-top-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  /* View Headers Flex Stacking */
+  .timetable-header-bar,
+  .assignments-header-bar,
+  .exams-header-bar,
+  .todo-header-bar,
+  .docs-header-bar,
+  .settings-header-bar {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.75rem;
+  }
+
+  .assignments-header-actions,
+  .exams-header-actions,
+  .todo-header-actions,
+  .timetable-header-actions {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .assignments-header-actions button,
+  .exams-header-actions button,
+  .todo-header-actions button {
+    flex: 1;
+    white-space: nowrap;
+    justify-content: center;
+  }
+
+  /* Timetable Horizontal Scroll Container */
+  .timetable-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-md);
+  }
+
+  /* Pomodoro Gauge Scaling */
+  .pomo-gauge-box {
+    width: 170px;
+    height: 170px;
+  }
+
+  .pomo-digits-text {
+    font-size: 2.2rem;
+  }
+
+  .pomo-actions-row {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .pomo-start-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Analytics Grid Stacking */
+  .analytics-top-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-card-val {
+    font-size: 1.8rem;
+  }
+
+  /* Settings Page Responsive */
+  .settings-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-tabs {
+    overflow-x: auto;
+    width: 100%;
+    white-space: nowrap;
+    padding-bottom: 0.3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dash-welcome-title {
+    font-size: 1.3rem;
+  }
+
+  .timetable-title,
+  .analytics-header h1,
+  .pomo-page-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .pomo-mode-tabs {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .pomo-mode-tab {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.72rem;
+    flex: 1;
+    text-align: center;
+  }
+}
+
+/* ==========================================================================
+   GPA Calculator Custom Styles
+   ========================================================================== */
+.gpa-semester-tabs-bar::-webkit-scrollbar {
+  height: 4px;
+}
+.gpa-semester-tabs-bar::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: var(--radius-full);
+}
+

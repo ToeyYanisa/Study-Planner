@@ -47,6 +47,9 @@ class NotificationManager {
   success(msg) { this.showToast('สำเร็จ', msg, 'success'); }
 }
 
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { db, auth } from './firebase';
+
 const DB_NAME = 'StudyPlannerDB';
 const DB_VERSION = 1;
 const DOC_STORE = 'documents';
@@ -81,7 +84,11 @@ class StorageManager {
   getItem(key, defaultValue = []) {
     try {
       const data = localStorage.getItem(`study_planner_${key}`);
-      return data ? JSON.parse(data) : defaultValue;
+      if (!data) return defaultValue;
+      const parsed = JSON.parse(data);
+      if (parsed === null || parsed === undefined) return defaultValue;
+      if (Array.isArray(defaultValue) && !Array.isArray(parsed)) return defaultValue;
+      return parsed;
     } catch (e) {
       return defaultValue;
     }
@@ -90,8 +97,71 @@ class StorageManager {
   setItem(key, value) {
     try {
       localStorage.setItem(`study_planner_${key}`, JSON.stringify(value));
-    } catch (e) {}
+      // Cloud Firestore Background Sync if user is logged in
+      this.syncToCloud(key, value);
+    } catch (e) {
+      console.error('Storage setItem error:', e);
+    }
   }
+
+  async syncToCloud(key, value) {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const docRef = doc(db, 'users', user.uid, 'collections', key);
+      await setDoc(docRef, {
+        data: value,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (err) {
+      console.warn('Firebase Cloud sync failed (offline or permissions):', err);
+    }
+  }
+
+  async syncFromCloud(userId) {
+    if (!userId) return false;
+    try {
+      const collRef = collection(db, 'users', userId, 'collections');
+      const snap = await getDocs(collRef);
+      if (snap.empty) {
+        // First login: upload existing local items to cloud
+        const keys = ['courses', 'assignments', 'exams', 'todo', 'grades', 'pomodoro_logs', 'profile', 'notif_settings', 'pomo_settings'];
+        for (const k of keys) {
+          const val = this.getItem(k, null);
+          if (val !== null) {
+            await this.syncToCloud(k, val);
+          }
+        }
+        return true;
+      }
+
+      snap.forEach((docSnap) => {
+        const key = docSnap.id;
+        const val = docSnap.data().data;
+        if (val !== undefined) {
+          localStorage.setItem(`study_planner_${key}`, JSON.stringify(val));
+        }
+      });
+      return true;
+    } catch (err) {
+      console.warn('Firebase syncFromCloud error:', err);
+      return false;
+    }
+  }
+
+  clearLocalUserData() {
+    try {
+      const keysToKeep = ['study_planner_theme'];
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('study_planner_') && !keysToKeep.includes(key)) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      console.error('Error clearing local storage:', e);
+    }
+  }
+
 
   async saveDocument(docData) {
     if (!this.db) await this.initIndexedDB();
@@ -103,6 +173,18 @@ class StorageManager {
         req.onsuccess = () => resolve(docData);
         req.onerror = (e) => reject(e);
       });
+    }
+    // Also sync document meta to cloud if logged in
+    try {
+      const user = auth.currentUser;
+      if (user && docData.id) {
+        const docRef = doc(db, 'users', user.uid, 'documents', String(docData.id));
+        const meta = { ...docData };
+        delete meta.dataUrl; // avoid large base64 document string in Firestore document if large
+        await setDoc(docRef, { ...meta, updatedAt: new Date().toISOString() });
+      }
+    } catch (err) {
+      console.warn('Cloud doc sync failed:', err);
     }
     return docData;
   }
@@ -130,9 +212,18 @@ class StorageManager {
         req.onerror = (e) => reject(e);
       });
     }
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'documents', String(id)));
+      }
+    } catch (err) {
+      console.warn('Cloud deleteDoc failed:', err);
+    }
     return true;
   }
 }
 
 export const notify = new NotificationManager();
 export const dbManager = new StorageManager();
+

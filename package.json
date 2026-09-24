@@ -11,6 +11,8 @@
   "dependencies": {
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.4.8",
+    "firebase": "^12.19.0",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",

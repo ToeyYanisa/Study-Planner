@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  User, Bell, Palette, Timer, Database, Info,
+  User, Palette, Timer, Database, Info,
   ChevronRight, Check, Moon, Sun, Trash2, Download,
-  Shield, Volume2, Languages, BookOpen, Target
+  Shield, Volume2, Languages, BookOpen, Target, Flag, Trophy
 } from 'lucide-react';
 import { dbManager, notify } from '../services/db';
+import { useAuth } from '../context/AuthContext';
+
 
 // ── Reusable sub-components ─────────────────────────────────────────────────
 function SettingSection({ icon: Icon, title, subtitle, children }) {
@@ -55,44 +57,53 @@ function Toggle({ checked, onChange, id }) {
 
 // ── Main Settings View ───────────────────────────────────────────────────────
 export default function SettingsView({ theme, onToggleTheme }) {
+  const { currentUser, updateUserProfile } = useAuth();
+
   // Profile state
-  const [profile, setProfile] = useState(() =>
-    dbManager.getItem('profile', {
-      name: 'สมชาย วงศ์สว่าง',
+  const [profile, setProfile] = useState(() => {
+    const saved = dbManager.getItem('profile', null);
+    if (saved) return saved;
+    return {
+      name: currentUser?.displayName || 'เพื่อนนักศึกษา',
       studentId: '6512345678',
       year: '2',
       faculty: 'วิทยาศาสตร์และเทคโนโลยี',
       major: 'วิทยาการคอมพิวเตอร์',
       gpaTarget: '3.50'
-    })
-  );
+    };
+  });
 
-  // Notifications state
-  const [notifSettings, setNotifSettings] = useState(() =>
-    dbManager.getItem('notif_settings', {
-      assignmentReminder: true,
-      examReminder: true,
-      pomodoroSound: true,
-      dailySummary: false
-    })
-  );
+  useEffect(() => {
+    if (currentUser?.displayName) {
+      setProfile(prev => {
+        if (!prev.name || prev.name === 'เพื่อนนักศึกษา' || prev.name === 'สมชาย วงศ์สว่าง') {
+          return { ...prev, name: currentUser.displayName };
+        }
+        return prev;
+      });
+    }
+  }, [currentUser]);
 
-  // Pomodoro settings
+  // Pomodoro & Goal settings
   const [pomoSettings, setPomoSettings] = useState(() =>
     dbManager.getItem('pomo_settings', {
       focusMin: 25,
       shortBreak: 5,
-      longBreak: 15,
-      sessionsBeforeLong: 4
+      dailyGoalHours: 4.0,
+      weeklyGoalHours: 20
     })
   );
 
   const [activeTab, setActiveTab] = useState('profile');
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     dbManager.setItem('profile', profile);
+    if (currentUser && profile.name) {
+      await updateUserProfile({ displayName: profile.name });
+    }
     notify.success('บันทึกข้อมูลโปรไฟล์เรียบร้อยแล้ว');
   };
+
 
   const saveNotif = (key, val) => {
     const updated = { ...notifSettings, [key]: val };
@@ -115,13 +126,13 @@ export default function SettingsView({ theme, onToggleTheme }) {
 
   const handleExportData = () => {
     const data = {
-      courses:     dbManager.getItem('courses', []),
+      courses: dbManager.getItem('courses', []),
       assignments: dbManager.getItem('assignments', []),
-      exams:       dbManager.getItem('exams', []),
-      todo:        dbManager.getItem('todo', []),
-      grades:      dbManager.getItem('grades', []),
-      profile:     dbManager.getItem('profile', {}),
-      exportedAt:  new Date().toISOString()
+      exams: dbManager.getItem('exams', []),
+      todo: dbManager.getItem('todo', []),
+      grades: dbManager.getItem('grades', []),
+      profile: dbManager.getItem('profile', {}),
+      exportedAt: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -134,12 +145,9 @@ export default function SettingsView({ theme, onToggleTheme }) {
   };
 
   const tabs = [
-    { id: 'profile',       label: 'โปรไฟล์',       icon: User },
-    { id: 'appearance',    label: 'การแสดงผล',     icon: Palette },
-    { id: 'notifications', label: 'การแจ้งเตือน',  icon: Bell },
-    { id: 'pomodoro',      label: 'Pomodoro',        icon: Timer },
-    { id: 'data',          label: 'ข้อมูล',          icon: Database },
-    { id: 'about',         label: 'เกี่ยวกับ',       icon: Info },
+    { id: 'profile', label: 'โปรไฟล์', icon: User },
+    { id: 'pomodoro', label: 'จัดเวลาและเป้าหมายอ่านหนังสือ', icon: Timer },
+    { id: 'about', label: 'เกี่ยวกับ', icon: Info },
   ];
 
   return (
@@ -178,8 +186,9 @@ export default function SettingsView({ theme, onToggleTheme }) {
               {/* Avatar */}
               <div className="settings-avatar-row">
                 <div className="settings-avatar-circle">
-                  {profile.name.charAt(0)}
+                  {(profile.name || 'U').charAt(0).toUpperCase()}
                 </div>
+
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main)' }}>{profile.name}</div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
@@ -214,7 +223,7 @@ export default function SettingsView({ theme, onToggleTheme }) {
                     value={profile.year}
                     onChange={e => setProfile({ ...profile, year: e.target.value })}
                   >
-                    {['1','2','3','4','5','6'].map(y => (
+                    {['1', '2', '3', '4', '5', '6'].map(y => (
                       <option key={y} value={y}>ปีที่ {y}</option>
                     ))}
                   </select>
@@ -262,194 +271,72 @@ export default function SettingsView({ theme, onToggleTheme }) {
             </SettingSection>
           )}
 
-          {/* ────── APPEARANCE ────── */}
-          {activeTab === 'appearance' && (
-            <SettingSection icon={Palette} title="การแสดงผล" subtitle="ธีม สี และรูปแบบของแอป">
-              <SettingRow label="โหมดแสดงผล" description="สลับระหว่างโหมดสว่างและโหมดมืด">
-                <div className="theme-selector">
-                  <button
-                    className={`theme-option ${theme === 'light' ? 'active' : ''}`}
-                    onClick={() => theme !== 'light' && onToggleTheme()}
-                  >
-                    <Sun style={{ width: 16, height: 16 }} />
-                    <span>สว่าง</span>
-                  </button>
-                  <button
-                    className={`theme-option ${theme === 'dark' ? 'active' : ''}`}
-                    onClick={() => theme !== 'dark' && onToggleTheme()}
-                  >
-                    <Moon style={{ width: 16, height: 16 }} />
-                    <span>มืด</span>
-                  </button>
-                </div>
-              </SettingRow>
-
-              <div className="setting-divider" />
-
-              <SettingRow label="ภาษาแสดงผล" description="ภาษาของอินเตอร์เฟซ">
-                <select className="form-control" style={{ width: 160 }}>
-                  <option value="th">🇹🇭 ภาษาไทย</option>
-                  <option value="en">🇺🇸 English</option>
-                </select>
-              </SettingRow>
-
-              <div className="setting-divider" />
-
-              <SettingRow label="ฟอนต์หลัก" description="รูปแบบตัวอักษร">
-                <select className="form-control" style={{ width: 160 }}>
-                  <option>Inter + Kanit</option>
-                  <option>Kanit only</option>
-                  <option>Sarabun</option>
-                </select>
-              </SettingRow>
-
-              {/* Color preview strip */}
-              <div className="settings-color-preview">
-                <div className="color-chip" style={{ background: 'var(--primary)' }} title="Primary" />
-                <div className="color-chip" style={{ background: 'var(--accent-purple)' }} title="Purple" />
-                <div className="color-chip" style={{ background: 'var(--accent-cyan)' }} title="Cyan" />
-                <div className="color-chip" style={{ background: 'var(--accent-emerald)' }} title="Emerald" />
-                <div className="color-chip" style={{ background: 'var(--accent-amber)' }} title="Amber" />
-                <div className="color-chip" style={{ background: 'var(--accent-rose)' }} title="Rose" />
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginLeft: '0.25rem' }}>สีธีมปัจจุบัน</span>
-              </div>
-            </SettingSection>
-          )}
-
-          {/* ────── NOTIFICATIONS ────── */}
-          {activeTab === 'notifications' && (
-            <SettingSection icon={Bell} title="การแจ้งเตือน" subtitle="ปรับแต่งการแจ้งเตือนต่างๆ">
-              <SettingRow label="แจ้งเตือนกำหนดส่งงาน" description="แจ้งเตือนก่อนกำหนดส่ง 1 วัน">
-                <Toggle
-                  id="notif-assignment"
-                  checked={notifSettings.assignmentReminder}
-                  onChange={e => saveNotif('assignmentReminder', e.target.checked)}
-                />
-              </SettingRow>
-              <div className="setting-divider" />
-              <SettingRow label="แจ้งเตือนวันสอบ" description="แจ้งเตือนก่อนสอบ 3 วันและวันที่สอบ">
-                <Toggle
-                  id="notif-exam"
-                  checked={notifSettings.examReminder}
-                  onChange={e => saveNotif('examReminder', e.target.checked)}
-                />
-              </SettingRow>
-              <div className="setting-divider" />
-              <SettingRow label="เสียง Pomodoro" description="เปิดเสียงเมื่อหมดเวลาและพักเสร็จ">
-                <Toggle
-                  id="notif-pomo"
-                  checked={notifSettings.pomodoroSound}
-                  onChange={e => saveNotif('pomodoroSound', e.target.checked)}
-                />
-              </SettingRow>
-              <div className="setting-divider" />
-              <SettingRow label="สรุปรายวัน" description="รับสรุปภาพรวมการเรียนทุกเย็น">
-                <Toggle
-                  id="notif-daily"
-                  checked={notifSettings.dailySummary}
-                  onChange={e => saveNotif('dailySummary', e.target.checked)}
-                />
-              </SettingRow>
-            </SettingSection>
-          )}
-
-          {/* ────── POMODORO ────── */}
+          {/* ────── POMODORO / STUDY TIMER & GOALS ────── */}
           {activeTab === 'pomodoro' && (
-            <SettingSection icon={Timer} title="ตั้งค่า Pomodoro" subtitle="ปรับช่วงเวลาโฟกัสและพักผ่อน">
-              <div className="pomo-settings-grid">
+            <SettingSection icon={Timer} title="ตั้งค่าเวลาและเป้าหมายอ่านหนังสือ" subtitle="ปรับแต่งระยะเวลาอ่านหนังสือ พักสายตา และกำหนดเป้าหมายประจำวัน/สัปดาห์">
+              <div className="pomo-settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                {/* 1. Focus Time */}
                 <div className="pomo-setting-card">
                   <div className="pomo-setting-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
                     <BookOpen style={{ width: 20, height: 20 }} />
                   </div>
-                  <label className="pomo-setting-label">เวลาโฟกัส</label>
+                  <label className="pomo-setting-label">เวลาอ่านหนังสือต่อรอบ</label>
                   <div className="pomo-setting-value-row">
-                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('focusMin', Math.max(5, pomoSettings.focusMin - 5))}>−</button>
-                    <span className="pomo-setting-value">{pomoSettings.focusMin}</span>
-                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('focusMin', Math.min(90, pomoSettings.focusMin + 5))}>+</button>
+                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('focusMin', Math.max(5, (pomoSettings.focusMin || 25) - 5))}>−</button>
+                    <span className="pomo-setting-value">{pomoSettings.focusMin || 25}</span>
+                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('focusMin', Math.min(120, (pomoSettings.focusMin || 25) + 5))}>+</button>
                   </div>
                   <span className="pomo-setting-unit">นาที</span>
                 </div>
 
+                {/* 2. Short Break */}
                 <div className="pomo-setting-card">
                   <div className="pomo-setting-icon" style={{ background: 'rgba(16,185,129,0.10)', color: '#10b981' }}>
                     <Timer style={{ width: 20, height: 20 }} />
                   </div>
-                  <label className="pomo-setting-label">พักสั้น</label>
+                  <label className="pomo-setting-label">เวลาพักสายตา</label>
                   <div className="pomo-setting-value-row">
-                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('shortBreak', Math.max(1, pomoSettings.shortBreak - 1))}>−</button>
-                    <span className="pomo-setting-value">{pomoSettings.shortBreak}</span>
-                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('shortBreak', Math.min(30, pomoSettings.shortBreak + 1))}>+</button>
+                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('shortBreak', Math.max(1, (pomoSettings.shortBreak || 5) - 1))}>−</button>
+                    <span className="pomo-setting-value">{pomoSettings.shortBreak || 5}</span>
+                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('shortBreak', Math.min(30, (pomoSettings.shortBreak || 5) + 1))}>+</button>
                   </div>
                   <span className="pomo-setting-unit">นาที</span>
                 </div>
 
+                {/* 3. Daily Goal Hours */}
                 <div className="pomo-setting-card">
                   <div className="pomo-setting-icon" style={{ background: 'rgba(245,158,11,0.10)', color: '#f59e0b' }}>
-                    <Timer style={{ width: 20, height: 20 }} />
+                    <Flag style={{ width: 20, height: 20 }} />
                   </div>
-                  <label className="pomo-setting-label">พักยาว</label>
+                  <label className="pomo-setting-label">เป้าหมายประจำวัน</label>
                   <div className="pomo-setting-value-row">
-                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('longBreak', Math.max(5, pomoSettings.longBreak - 5))}>−</button>
-                    <span className="pomo-setting-value">{pomoSettings.longBreak}</span>
-                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('longBreak', Math.min(60, pomoSettings.longBreak + 5))}>+</button>
+                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('dailyGoalHours', Math.max(0.5, Number(((pomoSettings.dailyGoalHours || 4) - 0.5).toFixed(1))))}>−</button>
+                    <span className="pomo-setting-value">{(pomoSettings.dailyGoalHours || 4.0).toFixed(1)}</span>
+                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('dailyGoalHours', Math.min(16, Number(((pomoSettings.dailyGoalHours || 4) + 0.5).toFixed(1))))}>+</button>
                   </div>
-                  <span className="pomo-setting-unit">นาที</span>
+                  <span className="pomo-setting-unit">ชั่วโมง / วัน</span>
                 </div>
 
+                {/* 4. Weekly Goal Hours */}
                 <div className="pomo-setting-card">
-                  <div className="pomo-setting-icon" style={{ background: 'rgba(124,92,232,0.10)', color: 'var(--accent-purple)' }}>
-                    <Target style={{ width: 20, height: 20 }} />
+                  <div className="pomo-setting-icon" style={{ background: 'rgba(168,85,247,0.10)', color: '#a855f7' }}>
+                    <Trophy style={{ width: 20, height: 20 }} />
                   </div>
-                  <label className="pomo-setting-label">รอบก่อนพักยาว</label>
+                  <label className="pomo-setting-label">เป้าหมายประจำสัปดาห์</label>
                   <div className="pomo-setting-value-row">
-                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('sessionsBeforeLong', Math.max(1, pomoSettings.sessionsBeforeLong - 1))}>−</button>
-                    <span className="pomo-setting-value">{pomoSettings.sessionsBeforeLong}</span>
-                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('sessionsBeforeLong', Math.min(8, pomoSettings.sessionsBeforeLong + 1))}>+</button>
+                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('weeklyGoalHours', Math.max(1, (pomoSettings.weeklyGoalHours || 20) - 1))}>−</button>
+                    <span className="pomo-setting-value">{pomoSettings.weeklyGoalHours || 20}</span>
+                    <button className="pomo-adj-btn" onClick={() => savePomoSettings('weeklyGoalHours', Math.min(100, (pomoSettings.weeklyGoalHours || 20) + 1))}>+</button>
                   </div>
-                  <span className="pomo-setting-unit">รอบ</span>
+                  <span className="pomo-setting-unit">ชั่วโมง / สัปดาห์</span>
                 </div>
               </div>
 
-              <div className="pomo-settings-summary">
+              <div className="pomo-settings-summary" style={{ marginTop: '1.25rem' }}>
                 <Info style={{ width: 14, height: 14, flexShrink: 0 }} />
                 <span>
-                  โฟกัส {pomoSettings.focusMin} นาที → พักสั้น {pomoSettings.shortBreak} นาที (ทำซ้ำ {pomoSettings.sessionsBeforeLong} รอบ) → พักยาว {pomoSettings.longBreak} นาที
+                  อ่านหนังสือครั้งละ {pomoSettings.focusMin || 25} นาที → พักสายตา {pomoSettings.shortBreak || 5} นาที | เป้าหมายวันละ {(pomoSettings.dailyGoalHours || 4.0).toFixed(1)} ชม. และสัปดาห์ละ {pomoSettings.weeklyGoalHours || 20} ชม.
                 </span>
-              </div>
-            </SettingSection>
-          )}
-
-          {/* ────── DATA ────── */}
-          {activeTab === 'data' && (
-            <SettingSection icon={Database} title="จัดการข้อมูล" subtitle="ส่งออกหรือล้างข้อมูลในแอป">
-              <SettingRow label="ส่งออกข้อมูลทั้งหมด" description="บันทึกข้อมูลทุกอย่างเป็นไฟล์ JSON">
-                <button className="btn btn-secondary btn-sm" onClick={handleExportData}>
-                  <Download style={{ width: 15, height: 15 }} /> Export JSON
-                </button>
-              </SettingRow>
-              <div className="setting-divider" />
-              <div className="settings-danger-zone">
-                <div className="danger-zone-title">
-                  <Shield style={{ width: 15, height: 15 }} />
-                  <span>โซนอันตราย</span>
-                </div>
-                {[
-                  { key: 'assignments', label: 'การมอบหมายงาน' },
-                  { key: 'exams', label: 'ตารางสอบ' },
-                  { key: 'todo', label: 'รายการที่ต้องทำ' },
-                  { key: 'courses', label: 'รายวิชา' },
-                  { key: 'grades', label: 'ข้อมูลเกรด' },
-                ].map(item => (
-                  <div key={item.key} className="danger-row">
-                    <span className="danger-row-label">ล้าง{item.label}ทั้งหมด</span>
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleClearData(item.key, item.label)}
-                    >
-                      <Trash2 style={{ width: 13, height: 13 }} /> ล้างข้อมูล
-                    </button>
-                  </div>
-                ))}
               </div>
             </SettingSection>
           )}
@@ -471,11 +358,11 @@ export default function SettingsView({ theme, onToggleTheme }) {
 
               <div className="about-info-list">
                 {[
-                  { label: 'Framework',   value: 'React 18 + Vite 6' },
-                  { label: 'UI Library',  value: 'Lucide React' },
-                  { label: 'Charts',      value: 'Chart.js + react-chartjs-2' },
-                  { label: 'Storage',     value: 'localStorage + IndexedDB' },
-                  { label: 'Font',        value: 'Inter · Kanit · Plus Jakarta Sans' },
+                  { label: 'Framework', value: 'React 18 + Vite 6' },
+                  { label: 'UI Library', value: 'Lucide React' },
+                  { label: 'Charts', value: 'Chart.js + react-chartjs-2' },
+                  { label: 'Storage', value: 'localStorage + IndexedDB' },
+                  { label: 'Font', value: 'Inter · Kanit · Plus Jakarta Sans' },
                 ].map(item => (
                   <div key={item.label} className="about-info-row">
                     <span className="about-info-label">{item.label}</span>

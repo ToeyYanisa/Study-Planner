@@ -11,10 +11,16 @@ import {
   Timer, 
   Settings, 
   Moon, 
-  SunMoon 
+  SunMoon,
+  X,
+  Lock
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-export default function Sidebar({ currentView, onViewChange, badgeCounts, onToggleTheme }) {
+export default function Sidebar({ currentView, onViewChange, badgeCounts, onToggleTheme, isOpen, onClose }) {
+  const { currentUser } = useAuth();
+  const lockedViews = ['assignments', 'grades', 'documents'];
+
   const navItems = [
     { id: 'dashboard', label: 'หน้าหลัก', icon: LayoutGrid },
     { id: 'timetable', label: 'ตารางเวลา', icon: Calendar },
@@ -28,15 +34,18 @@ export default function Sidebar({ currentView, onViewChange, badgeCounts, onTogg
   ];
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="brand-header">
         <div className="brand-icon-box">
           <GraduationCap style={{ width: 26, height: 26 }} />
         </div>
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="brand-title">Study Planner</div>
           <div className="brand-subtitle">Smart Student Assistant</div>
         </div>
+        <button className="mobile-close-btn" onClick={onClose} aria-label="ปิดเมนู">
+          <X style={{ width: 20, height: 20 }} />
+        </button>
       </div>
 
       <ul className="nav-menu">
@@ -53,12 +62,16 @@ export default function Sidebar({ currentView, onViewChange, badgeCounts, onTogg
             >
               <Icon style={{ width: 18, height: 18 }} />
               <span>{item.label}</span>
-              {item.badgeKey && (
+              {!currentUser && lockedViews.includes(item.id) && (
+                <Lock style={{ width: 13, height: 13, marginLeft: 'auto', opacity: 0.4 }} />
+              )}
+              {item.badgeKey && (currentUser || !lockedViews.includes(item.id)) && (
                 <span className="nav-badge" id={`badge-count-${item.badgeKey}`}>
                   {badgeCount}
                 </span>
               )}
             </li>
+
           );
         })}
       </ul>
