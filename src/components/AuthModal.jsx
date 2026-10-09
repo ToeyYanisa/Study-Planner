@@ -67,7 +67,7 @@ export default function AuthModal({ isOpen, onClose }) {
       <div className="modal-content" style={{ maxWidth: 420 }}>
         <div className="modal-header">
           <h3 className="modal-title" style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-            {currentUser ? '👤 โปรไฟล์บัญชี' : '🔥 Firebase Account'}
+            {currentUser ? '👤 โปรไฟล์บัญชี' : '🔥Account'}
           </h3>
           <button className="modal-close" id="btn-close-auth-modal" onClick={onClose}>
             &times;
@@ -123,13 +123,13 @@ export default function AuthModal({ isOpen, onClose }) {
                 onClick={handleLogout}
                 style={{ width: '100%', justifyContent: 'center', gap: '0.5rem', color: '#ef4444' }}
               >
-                <LogOut style={{ width: 18, height: 18 }} /> ออกจากระบบและล้างแคชเครื่อง
+                <LogOut style={{ width: 18, height: 18 }} /> ออกจากระบบ
               </button>
             </div>
           ) : (
             <div id="auth-signed-out-view">
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.2rem' }}>
-                เข้าสู่ระบบด้วย Firebase เพื่อบันทึกและซิงค์ข้อมูลบน Cloud แบบ Realtime
+                เข้าสู่ระบบเพื่อเข้าใช้งาน Study Planner
               </p>
 
               <button

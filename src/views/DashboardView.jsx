@@ -81,19 +81,24 @@ export default function DashboardView({ onViewChange }) {
 
   // 3. Nearest Upcoming Exam Calculation
   const now = new Date();
-  const validExams = Array.isArray(exams) ? exams.filter(e => e.examDate || e.date) : [];
-  const sortedExams = [...validExams].sort((a, b) => new Date(a.examDate || a.date) - new Date(b.examDate || b.date));
-  const futureExams = sortedExams.filter(e => new Date(e.examDate || e.date) >= now);
+  const validExams = Array.isArray(exams) ? exams.filter(e => e.date) : [];
+  const sortedExams = [...validExams].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const futureExams = sortedExams.filter(e => {
+    const [y, m, d] = e.date.split('-').map(Number);
+    return new Date(y, m - 1, d) >= new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
   const nearestExam = futureExams[0] || sortedExams[0] || null;
 
   let daysToExam = 0;
   let formattedExamDate = '';
   if (nearestExam) {
-    const examTime = new Date(nearestExam.examDate || nearestExam.date);
-    const diffTime = examTime - now;
-    daysToExam = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-    if (!isNaN(examTime.getTime())) {
-      formattedExamDate = examTime.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const [y, m, d] = nearestExam.date.split('-').map(Number);
+    const examDate = new Date(y, m - 1, d);
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    daysToExam = Math.max(0, Math.round((examDate - todayMidnight) / (1000 * 60 * 60 * 24)));
+    formattedExamDate = examDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (nearestExam.startTime) {
+      formattedExamDate += ` ${nearestExam.startTime} - ${nearestExam.endTime || ''} น.`;
     }
   }
 
@@ -216,10 +221,11 @@ export default function DashboardView({ onViewChange }) {
           {nearestExam ? (
             <>
               <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
-                {nearestExam.subject || nearestExam.name || 'การสอบ'}
+                {nearestExam.subjectCode ? `${nearestExam.subjectCode} - ` : ''}{nearestExam.subjectName || 'การสอบ'}
+                {nearestExam.type && <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '0.4rem' }}>({nearestExam.type})</span>}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                📍 {nearestExam.location || nearestExam.room || 'ไม่ระบุสถานที่'}
+                📍 {nearestExam.location || 'ไม่ระบุสถานที่'}
                 {formattedExamDate && ` | 🕒 ${formattedExamDate}`}
               </div>
             </>

@@ -159,10 +159,12 @@ export default function ExamsView({ onUpdateBadges }) {
     if (!dateStr) return null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const target = new Date(dateStr);
+    // Parse as local time to avoid UTC timezone offset
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const target = new Date(y, m - 1, d);
     target.setHours(0, 0, 0, 0);
     const diffTime = target - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
 
